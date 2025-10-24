@@ -52,7 +52,7 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  base: '/', // <-- added for GitHub Pages root deployment
+  base: '/LandingPage/', // <-- added for GitHub Pages root deployment
   build: {
     target: 'esnext',
     outDir: 'build', // kept as is
