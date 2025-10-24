@@ -55,7 +55,7 @@ export default defineConfig({
   base: '/LandingPage/', // <-- added for GitHub Pages root deployment
   build: {
     target: 'esnext',
-    outDir: 'build', // kept as is
+    outDir: 'dist', // kept as is
   },
   server: {
     port: 3000,
