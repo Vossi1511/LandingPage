@@ -25,13 +25,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          # Remove the cache line since there's no lock file
           
       - name: Install dependencies
-        run: npm install  # Changed from npm ci
+        run: npm install
         
       - name: Build
         run: npm run build
+        
+      - name: List dist directory contents
+        run: |
+          echo "Contents of dist directory:"
+          ls -laR dist/
         
       - name: Setup Pages
         uses: actions/configure-pages@v4
