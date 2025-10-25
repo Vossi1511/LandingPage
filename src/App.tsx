@@ -17,7 +17,7 @@ import {
   AvatarFallback,
   AvatarImage,
 } from "./components/ui/avatar";
-import profileImage from "figma:asset/4bc64df884a940c39a286da197b1cf59a5684086.png";
+import profileImage from "figma:asset/pb.jpg";
 
 const socialLinks = [
   {
