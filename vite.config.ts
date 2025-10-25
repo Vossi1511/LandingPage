@@ -50,10 +50,20 @@
         '@': path.resolve(__dirname, './src'),
       },
     },
-    build: {
-      target: 'esnext',
-      outDir: 'build',
-    },
+
+  base: '/', // <-- added for GitHub Pages root deployment
+
+
+  build: {
+
+
+    target: 'esnext',
+
+
+    outDir: 'dist', // kept as is
+
+
+  },
     server: {
       port: 3000,
       open: true,
