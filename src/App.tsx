@@ -10,6 +10,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { TerminalText } from "./components/TerminalText";
+import { FontCycler } from "./components/FontCycler";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
 import {
@@ -140,7 +141,7 @@ export default function App() {
             transition={{ duration: 0.6, delay: 0.8 }}
           >
             <h1 className="text-4xl sm:text-5xl mb-3 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              Vossi
+              <FontCycler text="Vossi" delay={800} duration={5000} />
             </h1>
             <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
               <Badge
@@ -199,6 +200,7 @@ export default function App() {
                       text="neofetch"
                       delay={1500}
                       speed={80}
+                      hideCursor={showNeofetch}
                     />
                   </div>
                   {showNeofetch && (
@@ -281,6 +283,17 @@ export default function App() {
                         <span className="text-slate-500">
                           $
                         </span>{" "}
+                        <motion.span
+                          animate={{ opacity: [1, 0, 1] }}
+                          transition={{
+                            duration: 1,
+                            repeat: Infinity,
+                            ease: "linear"
+                          }}
+                          className="inline-block"
+                        >
+                          ▊
+                        </motion.span>
                       </div>
                     </>
                   )}
@@ -333,7 +346,8 @@ export default function App() {
                       delay: 1.2 + index * 0.1,
                     }}
                     whileHover={{ scale: 1.03, x: 5 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileTap={{ scale: 0.95 }}
+                    transition={{ duration: 0.1 }}
                   >
                     <Button
                       variant="outline"
@@ -378,7 +392,8 @@ export default function App() {
                       delay: 1.5 + index * 0.1,
                     }}
                     whileHover={{ scale: 1.1, rotate: 5 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileTap={{ scale: 0.9 }}
+                    transition={{ duration: 0.1 }}
                   >
                     <Badge
                       variant="outline"

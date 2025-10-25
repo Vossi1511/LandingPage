@@ -4,9 +4,10 @@ interface TerminalTextProps {
   text: string;
   delay?: number;
   speed?: number;
+  hideCursor?: boolean;
 }
 
-export function TerminalText({ text, delay = 0, speed = 50 }: TerminalTextProps) {
+export function TerminalText({ text, delay = 0, speed = 50, hideCursor = false }: TerminalTextProps) {
   const [displayedText, setDisplayedText] = useState('');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showCursor, setShowCursor] = useState(true);
@@ -33,7 +34,7 @@ export function TerminalText({ text, delay = 0, speed = 50 }: TerminalTextProps)
   return (
     <span className="font-mono">
       {displayedText}
-      {currentIndex <= text.length && (
+      {!hideCursor && currentIndex <= text.length && (
         <span className={`${showCursor ? 'opacity-100' : 'opacity-0'} transition-opacity`}>
           ▊
         </span>
