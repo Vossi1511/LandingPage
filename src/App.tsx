@@ -8,6 +8,7 @@ import {
   GraduationCap,
   CarFront,
   MessageCircle,
+  Music,
 } from "lucide-react";
 import { TerminalText } from "./components/TerminalText";
 import { FontCycler } from "./components/FontCycler";
@@ -59,6 +60,12 @@ const hobbies = [
     label: "F1",
     color:
       "bg-orange-500/20 text-orange-300 border-orange-500/40",
+  },
+  {
+    icon: Music,
+    label: "Techno",
+    color:
+      "bg-pink-500/20 text-pink-300 border-pink-500/40",
   },
 ];
 
@@ -141,7 +148,7 @@ export default function App() {
             transition={{ duration: 0.6, delay: 0.8 }}
           >
             <h1 className="text-4xl sm:text-5xl mb-3 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              <FontCycler text="Vossi" delay={800} duration={5000} />
+              <FontCycler text="Vossi" delay={800} duration={3000} />
             </h1>
             <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
               <Badge

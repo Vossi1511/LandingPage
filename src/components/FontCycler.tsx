@@ -178,7 +178,7 @@ function playSwitchClick(volume: number = 0.2) {
 export function FontCycler({ 
   text, 
   finalFont = '"Courier New", Consolas, Monaco, "Lucida Console", monospace',
-  duration = 5000,
+  duration = 3000,
   delay = 0
 }: FontCyclerProps) {
   const [currentFont, setCurrentFont] = useState(fonts[0]);
