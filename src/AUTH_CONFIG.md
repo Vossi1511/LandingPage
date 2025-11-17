@@ -12,8 +12,8 @@ This bio page now features a **secure authentication system** with:
 
 | Username | Password | Role  |
 |----------|----------|-------|
-| vossi    | password | Admin |
-| hannes   | 1511     | User  |
+| ******   | ******** | Admin |
+| ******   | ****     | User  |
 
 ## Security Features
 
