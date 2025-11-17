@@ -177,7 +177,7 @@ function playSwitchClick(volume: number = 0.2) {
 
 export function FontCycler({ 
   text, 
-  finalFont = '"Courier New", Consolas, Monaco, "Lucida Console", monospace',
+  finalFont = 'Futura, "Futura PT", "Century Gothic", "Avenir Next", Avenir, "Trebuchet MS", sans-serif',
   duration = 3000,
   delay = 0
 }: FontCyclerProps) {
