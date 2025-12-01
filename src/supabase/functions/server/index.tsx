@@ -9,7 +9,7 @@ const app = new Hono();
 // Enable logger
 app.use('*', logger(console.log));
 
-// Enable CORS for all routes and methods
+// Robust CORS: handle preflight and always set headers on responses
 app.use(
   "/*",
   cors({
@@ -21,24 +21,55 @@ app.use(
   }),
 );
 
+// Ensure OPTIONS requests are handled quickly (preflight)
+app.options("/*", (c) => {
+  return c.text("", 204, {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Max-Age": "600",
+  });
+});
+
 // Initialize database on startup
 (async () => {
-  console.log('Initializing server...');
-  await auth.initializeUsers();
-  await profile.initializeProfile();
-  console.log('Server initialized successfully');
+  try {
+    console.log('Initializing server...');
+    await auth.initializeUsers();
+    await profile.initializeProfile();
+    console.log('Server initialized successfully');
+  } catch (e) {
+    console.error('Initialization error:', e);
+  }
 })();
+
+// Helper to normalize profile shape so frontend won't crash
+function normalizeProfileShape(raw: any) {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      name: '',
+      bio: '',
+      hobbies: [],
+      social: {},
+      // add other expected fields with safe defaults as needed
+    };
+  }
+  return {
+    name: typeof raw.name === 'string' ? raw.name : '',
+    bio: typeof raw.bio === 'string' ? raw.bio : '',
+    hobbies: Array.isArray(raw.hobbies) ? raw.hobbies : [],
+    social: raw.social && typeof raw.social === 'object' ? raw.social : {},
+    // preserve other fields if present
+    ...raw,
+  };
+}
 
 // Health check endpoint
 app.get("/make-server-58d40dac/health", (c) => {
   return c.json({ status: "ok", timestamp: new Date().toISOString() });
 });
 
-// ============================================================================
-// AUTHENTICATION ENDPOINTS
-// ============================================================================
-
-// Login endpoint
+// AUTH ENDPOINTS (unchanged logic)
 app.post("/make-server-58d40dac/auth/login", async (c) => {
   try {
     const body = await c.req.json();
@@ -48,7 +79,6 @@ app.post("/make-server-58d40dac/auth/login", async (c) => {
       return c.json({ error: 'Username and password are required' }, 400);
     }
 
-    // Validate input
     if (typeof username !== 'string' || typeof password !== 'string') {
       return c.json({ error: 'Invalid input format' }, 400);
     }
@@ -75,7 +105,6 @@ app.post("/make-server-58d40dac/auth/login", async (c) => {
   }
 });
 
-// Logout endpoint
 app.post("/make-server-58d40dac/auth/logout", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -93,7 +122,6 @@ app.post("/make-server-58d40dac/auth/logout", async (c) => {
   }
 });
 
-// Validate session endpoint
 app.get("/make-server-58d40dac/auth/validate", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -119,11 +147,7 @@ app.get("/make-server-58d40dac/auth/validate", async (c) => {
   }
 });
 
-// ============================================================================
-// USER MANAGEMENT ENDPOINTS (Admin only)
-// ============================================================================
-
-// Get all users
+// USER MANAGEMENT (admin only) — unchanged
 app.get("/make-server-58d40dac/users", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -146,7 +170,6 @@ app.get("/make-server-58d40dac/users", async (c) => {
   }
 });
 
-// Create new user
 app.post("/make-server-58d40dac/users", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -180,7 +203,6 @@ app.post("/make-server-58d40dac/users", async (c) => {
   }
 });
 
-// Update user password
 app.put("/make-server-58d40dac/users/:username/password", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -215,7 +237,6 @@ app.put("/make-server-58d40dac/users/:username/password", async (c) => {
   }
 });
 
-// Delete user
 app.delete("/make-server-58d40dac/users/:username", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -244,26 +265,27 @@ app.delete("/make-server-58d40dac/users/:username", async (c) => {
   }
 });
 
-// ============================================================================
-// PROFILE ENDPOINTS
-// ============================================================================
-
-// Get profile (public)
+// PROFILE ENDPOINTS (public)
 app.get("/make-server-58d40dac/profile", async (c) => {
   try {
-    const profileData = await profile.getProfile();
+    const rawProfile = await profile.getProfile();
     
-    // Increment view count
-    await profile.incrementProfileViews();
-    
-    return c.json(profileData);
+    // Increment view count (fire-and-forget)
+    try {
+      profile.incrementProfileViews().catch((e) => console.warn('incrementProfileViews failed', e));
+    } catch (e) {
+      console.warn('incrementProfileViews thrown', e);
+    }
+
+    const normalized = normalizeProfileShape(rawProfile);
+    return c.json(normalized);
   } catch (error) {
     console.error('Error fetching profile:', error);
-    return c.json({ error: 'Failed to fetch profile' }, 500);
+    // Return a normalized empty profile to avoid frontend crashes
+    return c.json(normalizeProfileShape(null), 500);
   }
 });
 
-// Update profile (admin only)
 app.put("/make-server-58d40dac/profile", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
@@ -283,7 +305,7 @@ app.put("/make-server-58d40dac/profile", async (c) => {
     
     if (result.success) {
       const updatedProfile = await profile.getProfile();
-      return c.json({ success: true, profile: updatedProfile });
+      return c.json({ success: true, profile: normalizeProfileShape(updatedProfile) });
     } else {
       return c.json({ error: result.error }, 400);
     }
@@ -293,7 +315,7 @@ app.put("/make-server-58d40dac/profile", async (c) => {
   }
 });
 
-// Get statistics (admin only)
+// STATISTICS (admin only)
 app.get("/make-server-58d40dac/statistics", async (c) => {
   try {
     const authHeader = c.req.header('Authorization');
