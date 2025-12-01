@@ -37,6 +37,7 @@ interface UserManagementProps {
 
 export function UserManagement({ onUserChange }: UserManagementProps) {
   const [users, setUsers] = useState<UserType[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -53,8 +54,17 @@ export function UserManagement({ onUserChange }: UserManagementProps) {
     loadUsers();
   }, []);
 
-  const loadUsers = () => {
-    setUsers(getUsers());
+  const loadUsers = async () => {
+    try {
+      setIsLoading(true);
+      const userList = await getUsers();
+      setUsers(userList);
+    } catch (error) {
+      console.error('Error loading users:', error);
+      toast.error('Failed to load users');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddUser = async () => {
@@ -63,17 +73,17 @@ export function UserManagement({ onUserChange }: UserManagementProps) {
       return;
     }
 
-    const success = await addUser(newUsername, newPassword, newRole);
-    if (success) {
+    const result = await addUser(newUsername, newPassword, newRole);
+    if (result.success) {
       toast.success(`User ${newUsername} added successfully`);
       setIsAddDialogOpen(false);
       setNewUsername('');
       setNewPassword('');
       setNewRole('user');
-      loadUsers();
+      await loadUsers();
       onUserChange?.();
     } else {
-      toast.error('User already exists');
+      toast.error(result.error || 'Failed to add user');
     }
   };
 
@@ -83,32 +93,26 @@ export function UserManagement({ onUserChange }: UserManagementProps) {
       return;
     }
 
-    const success = await updateUserPassword(selectedUser, editPassword);
-    if (success) {
+    const result = await updateUserPassword(selectedUser, editPassword);
+    if (result.success) {
       toast.success(`Password updated for ${selectedUser}`);
       setIsEditDialogOpen(false);
       setEditPassword('');
       setSelectedUser(null);
     } else {
-      toast.error('Failed to update password');
+      toast.error(result.error || 'Failed to update password');
     }
   };
 
-  const handleDeleteUser = (username: string) => {
-    if (username === 'vossi') {
-      toast.error('Cannot delete the main admin user');
-      return;
-    }
-
-    if (confirm(`Are you sure you want to delete user "${username}"?`)) {
-      const success = deleteUser(username);
-      if (success) {
-        toast.success(`User ${username} deleted`);
-        loadUsers();
-        onUserChange?.();
-      } else {
-        toast.error('Failed to delete user');
-      }
+  const handleDeleteUser = async (username: string) => {
+    const result = await deleteUser(username);
+    
+    if (result.success) {
+      toast.success(`User ${username} deleted`);
+      await loadUsers();
+      onUserChange?.();
+    } else {
+      toast.error(result.error || 'Failed to delete user');
     }
   };
 
@@ -146,57 +150,65 @@ export function UserManagement({ onUserChange }: UserManagementProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users.map((user) => (
-                <TableRow key={user.username} className="border-slate-700">
-                  <TableCell className="text-white font-mono flex items-center gap-2">
-                    <UserCircle className="w-4 h-4 text-slate-400" />
-                    {user.username}
+              {isLoading ? (
+                <TableRow className="border-slate-700">
+                  <TableCell colSpan={4} className="text-slate-400 text-center">
+                    Loading...
                   </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant="outline"
-                      className={
-                        user.role === 'admin'
-                          ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                          : 'bg-slate-700/50 text-slate-300 border-slate-600'
-                      }
-                    >
-                      {user.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
-                      {user.role}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-slate-400 text-sm">
-                    {new Date(user.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex gap-2 justify-end">
-                      <Button
+                </TableRow>
+              ) : (
+                users.map((user) => (
+                  <TableRow key={user.username} className="border-slate-700">
+                    <TableCell className="text-white font-mono flex items-center gap-2">
+                      <UserCircle className="w-4 h-4 text-slate-400" />
+                      {user.username}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
                         variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSelectedUser(user.username);
-                          setIsEditDialogOpen(true);
-                        }}
-                        className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
+                        className={
+                          user.role === 'admin'
+                            ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
+                            : 'bg-slate-700/50 text-slate-300 border-slate-600'
+                        }
                       >
-                        <Edit className="w-3 h-3 mr-1" />
-                        Edit
-                      </Button>
-                      {user.username !== 'vossi' && (
+                        {user.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
+                        {user.role}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-slate-400 text-sm">
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex gap-2 justify-end">
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => handleDeleteUser(user.username)}
-                          className="bg-red-900/20 border-red-500/40 text-red-300 hover:bg-red-900/30"
+                          onClick={() => {
+                            setSelectedUser(user.username);
+                            setIsEditDialogOpen(true);
+                          }}
+                          className="bg-slate-800 border-slate-600 text-slate-200 hover:bg-slate-700"
                         >
-                          <Trash2 className="w-3 h-3 mr-1" />
-                          Delete
+                          <Edit className="w-3 h-3 mr-1" />
+                          Edit
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {user.username !== 'vossi' && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteUser(user.username)}
+                            className="bg-red-900/20 border-red-500/40 text-red-300 hover:bg-red-900/30"
+                          >
+                            <Trash2 className="w-3 h-3 mr-1" />
+                            Delete
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
             </TableBody>
           </Table>
         </CardContent>

@@ -23,7 +23,7 @@ import {
 } from "./components/ui/avatar";
 import { Toaster } from "./components/ui/sonner";
 import profileImage from "figma:asset/4bc64df884a940c39a286da197b1cf59a5684086.png";
-import { getProfile, incrementProfileViews, initializeAuth, getCurrentUser, isAdmin } from "./lib/auth";
+import { getProfile, getCurrentUser, isAdmin, validateSession, clearProfileCache, type ProfileData } from "./lib/auth";
 
 // Icon mapping
 const iconMap: Record<string, any> = {
@@ -39,47 +39,61 @@ const iconMap: Record<string, any> = {
 
 export default function App() {
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
-  const [profile, setProfile] = useState(getProfile());
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [currentUser, setCurrentUser] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Initialize auth system
+    // Initialize and load profile from server
     const init = async () => {
-      await initializeAuth();
-      
-      // Track profile views
-      incrementProfileViews();
-
-      // Check if user is logged in
-      const user = getCurrentUser();
-      setCurrentUser(user);
-      
-      // Log credential setup instructions
-      console.log('%c🔐 Credential Setup', 'font-size: 16px; font-weight: bold; color: #8b5cf6;');
-      console.log('%cTo configure custom credentials:', 'font-size: 12px; color: #a78bfa;');
-      console.log('%c1. Go to Supabase Dashboard → Secrets', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c2. Create secret: ADMIN_CREDENTIALS', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c3. Format: username:password:role,username2:password2:role2', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c4. Example: hannes:1511:user,vossi:password:admin', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c\nDefault credentials:', 'font-size: 12px; color: #a78bfa;');
-      console.log('%c  - vossi / password (admin)', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c  - hannes / 1511 (user)', 'font-size: 12px; color: #c4b5fd;');
-      console.log('%c\n⚙️ Admin Interface Access:', 'font-size: 14px; font-weight: bold; color: #10b981;');
-      console.log('%c1. Type "su" in the terminal and login with admin credentials', 'font-size: 12px; color: #34d399;');
-      console.log('%c2. Click the "Admin Panel" button (top right after login)', 'font-size: 12px; color: #34d399;');
-      console.log('%c3. Or use keyboard shortcut: Ctrl+Shift+A', 'font-size: 12px; color: #34d399;');
-      console.log('%c\n📝 Admin Features:', 'font-size: 14px; font-weight: bold; color: #f59e0b;');
-      console.log('%c  • Change profile picture', 'font-size: 12px; color: #fbbf24;');
-      console.log('%c  • Add/remove connection methods (social links)', 'font-size: 12px; color: #fbbf24;');
-      console.log('%c  • Add/remove hobby tags', 'font-size: 12px; color: #fbbf24;');
-      console.log('%c  • Edit all profile information', 'font-size: 12px; color: #fbbf24;');
+      try {
+        // Validate existing session
+        await validateSession();
+        
+        // Load profile from server
+        const profileData = await getProfile();
+        setProfile(profileData);
+        
+        // Check if user is logged in
+        const user = getCurrentUser();
+        setCurrentUser(user);
+        
+        setIsLoading(false);
+        
+        // Log credential setup instructions
+        console.log('%c🔐 Production Authentication System', 'font-size: 16px; font-weight: bold; color: #8b5cf6;');
+        console.log('%c✓ Secure JWT-based authentication', 'font-size: 12px; color: #a78bfa;');
+        console.log('%c✓ bcrypt password hashing', 'font-size: 12px; color: #a78bfa;');
+        console.log('%c✓ Database-backed storage', 'font-size: 12px; color: #a78bfa;');
+        console.log('%c✓ Rate limiting protection', 'font-size: 12px; color: #a78bfa;');
+        console.log('%c\nDefault credentials:', 'font-size: 12px; color: #a78bfa;');
+        console.log('%c  - vossi / password (admin)', 'font-size: 12px; color: #c4b5fd;');
+        console.log('%c  - hannes / 1511 (user)', 'font-size: 12px; color: #c4b5fd;');
+        console.log('%c\n⚙️ Admin Interface Access:', 'font-size: 14px; font-weight: bold; color: #10b981;');
+        console.log('%c1. Type "su" in the terminal and login with admin credentials', 'font-size: 12px; color: #34d399;');
+        console.log('%c2. Click the "Admin Panel" button (top right after login)', 'font-size: 12px; color: #34d399;');
+        console.log('%c3. Or use keyboard shortcut: Ctrl+Shift+A', 'font-size: 12px; color: #34d399;');
+        console.log('%c\n📝 Admin Features:', 'font-size: 14px; font-weight: bold; color: #f59e0b;');
+        console.log('%c  • Changes are saved to database and affect all visitors', 'font-size: 12px; color: #fbbf24;');
+        console.log('%c  • Change profile picture', 'font-size: 12px; color: #fbbf24;');
+        console.log('%c  • Add/remove connection methods (social links)', 'font-size: 12px; color: #fbbf24;');
+        console.log('%c  • Add/remove hobby tags', 'font-size: 12px; color: #fbbf24;');
+        console.log('%c  • Edit all profile information', 'font-size: 12px; color: #fbbf24;');
+      } catch (error) {
+        console.error('Initialization error:', error);
+        setIsLoading(false);
+      }
     };
     
     init();
 
     // Listen for profile updates and login events
-    const handleStorageChange = () => {
-      setProfile(getProfile());
+    const handleStorageChange = async () => {
+      // Clear cache and reload profile
+      clearProfileCache();
+      const profileData = await getProfile();
+      setProfile(profileData);
+      
       const updatedUser = getCurrentUser();
       setCurrentUser(updatedUser);
       
@@ -114,9 +128,11 @@ export default function App() {
   }, []);
 
   // Refresh profile when closing admin dashboard
-  const handleCloseAdminDashboard = () => {
+  const handleCloseAdminDashboard = async () => {
     setShowAdminDashboard(false);
-    setProfile(getProfile());
+    clearProfileCache();
+    const profileData = await getProfile();
+    setProfile(profileData);
   };
 
   const handleAdminAccess = () => {
@@ -127,7 +143,19 @@ export default function App() {
   };
 
   // Use profile image if available, otherwise fallback to default
-  const displayImage = profile.profileImage || profileImage;
+  const displayImage = profile?.profileImage || profileImage;
+
+  // Show loading state while profile is loading
+  if (isLoading || !profile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   // Map hobbies and badges with proper icon components
   const mappedHobbies = profile.hobbies.map(hobby => ({
@@ -215,7 +243,7 @@ export default function App() {
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full blur-xl opacity-50 animate-pulse" />
             <Avatar className="w-32 h-32 border-4 border-slate-800 relative">
               <AvatarImage src={displayImage} />
-              <AvatarFallback>{profile.name[0]}</AvatarFallback>
+              <AvatarFallback>{profile?.name[0]}</AvatarFallback>
             </Avatar>
           </motion.div>
 
@@ -225,7 +253,7 @@ export default function App() {
             transition={{ duration: 0.6, delay: 0.8 }}
           >
             <h1 className="text-4xl sm:text-5xl mb-3 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-              <FontCycler text={profile.name} delay={800} duration={3000} />
+              <FontCycler text={profile?.name} delay={800} duration={3000} />
             </h1>
             <div className="flex items-center justify-center gap-2 mb-4 flex-wrap">
               {mappedBadges.map((badge, index) => (
@@ -245,7 +273,7 @@ export default function App() {
             </div>
             <p className="text-slate-400 mb-4">
               aka{" "}
-              {profile.alternateNames.map((name, i) => (
+              {profile?.alternateNames.map((name, i) => (
                 <span key={name}>
                   <span className="text-slate-300 font-mono">
                     {name}
@@ -286,10 +314,10 @@ export default function App() {
                 <Plane className="w-6 h-6 text-blue-400 flex-shrink-0 mt-1" />
                 <div>
                   <p className="text-slate-300 italic mb-2">
-                    "{profile.quote.text}"
+                    "{profile?.quote.text}"
                   </p>
                   <p className="text-slate-500 text-sm">
-                    - {profile.quote.author}
+                    - {profile?.quote.author}
                   </p>
                 </div>
               </div>

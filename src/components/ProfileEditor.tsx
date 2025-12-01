@@ -6,11 +6,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import { toast } from 'sonner@2.0.3';
-import { getProfile, updateProfile, type ProfileData } from '../lib/auth';
+import { getProfile, updateProfile, clearProfileCache, type ProfileData } from '../lib/auth';
 import { Badge } from './ui/badge';
 
 export function ProfileEditor() {
-  const [profile, setProfile] = useState<ProfileData>(getProfile());
+  const [profile, setProfile] = useState<ProfileData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [newAlternateName, setNewAlternateName] = useState('');
   const [newHobby, setNewHobby] = useState({ label: '', icon: 'Star', color: 'bg-blue-500/20 text-blue-300 border-blue-500/40' });
   const [newSocialLink, setNewSocialLink] = useState({ 
@@ -19,15 +21,53 @@ export function ProfileEditor() {
     icon: 'Mail', 
     color: 'hover:bg-blue-500/20 hover:border-blue-500/40 hover:text-blue-300' 
   });
-  const [previewImage, setPreviewImage] = useState<string>(profile.profileImage);
+  const [previewImage, setPreviewImage] = useState<string>('');
 
   useEffect(() => {
-    setPreviewImage(profile.profileImage);
-  }, [profile.profileImage]);
+    const loadProfile = async () => {
+      try {
+        const profileData = await getProfile();
+        setProfile(profileData);
+        setPreviewImage(profileData.profileImage);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error loading profile:', error);
+        toast.error('Failed to load profile');
+        setIsLoading(false);
+      }
+    };
+    
+    loadProfile();
+  }, []);
 
-  const handleSave = () => {
-    updateProfile(profile);
-    toast.success('Profile updated successfully');
+  useEffect(() => {
+    if (profile) {
+      setPreviewImage(profile.profileImage);
+    }
+  }, [profile?.profileImage]);
+
+  const handleSave = async () => {
+    if (!profile) return;
+    
+    setIsSaving(true);
+    try {
+      const result = await updateProfile(profile);
+      
+      if (result.success) {
+        // Clear cache and reload profile
+        clearProfileCache();
+        const updatedProfile = await getProfile();
+        setProfile(updatedProfile);
+        toast.success('Profile updated successfully - changes are now live for everyone!');
+      } else {
+        toast.error(result.error || 'Failed to update profile');
+      }
+    } catch (error) {
+      console.error('Error saving profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -44,7 +84,7 @@ export function ProfileEditor() {
   };
 
   const addAlternateName = () => {
-    if (newAlternateName.trim()) {
+    if (newAlternateName.trim() && profile) {
       setProfile({
         ...profile,
         alternateNames: [...profile.alternateNames, newAlternateName.trim()],
@@ -54,14 +94,16 @@ export function ProfileEditor() {
   };
 
   const removeAlternateName = (index: number) => {
-    setProfile({
-      ...profile,
-      alternateNames: profile.alternateNames.filter((_, i) => i !== index),
-    });
+    if (profile) {
+      setProfile({
+        ...profile,
+        alternateNames: profile.alternateNames.filter((_, i) => i !== index),
+      });
+    }
   };
 
   const addHobby = () => {
-    if (newHobby.label.trim()) {
+    if (newHobby.label.trim() && profile) {
       setProfile({
         ...profile,
         hobbies: [...profile.hobbies, newHobby],
@@ -71,14 +113,16 @@ export function ProfileEditor() {
   };
 
   const removeHobby = (index: number) => {
-    setProfile({
-      ...profile,
-      hobbies: profile.hobbies.filter((_, i) => i !== index),
-    });
+    if (profile) {
+      setProfile({
+        ...profile,
+        hobbies: profile.hobbies.filter((_, i) => i !== index),
+      });
+    }
   };
 
   const addSocialLink = () => {
-    if (newSocialLink.label.trim() && newSocialLink.href.trim()) {
+    if (newSocialLink.label.trim() && newSocialLink.href.trim() && profile) {
       setProfile({
         ...profile,
         socialLinks: [...profile.socialLinks, newSocialLink],
@@ -93,11 +137,24 @@ export function ProfileEditor() {
   };
 
   const removeSocialLink = (index: number) => {
-    setProfile({
-      ...profile,
-      socialLinks: profile.socialLinks.filter((_, i) => i !== index),
-    });
+    if (profile) {
+      setProfile({
+        ...profile,
+        socialLinks: profile.socialLinks.filter((_, i) => i !== index),
+      });
+    }
   };
+
+  if (isLoading || !profile) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-400">Loading profile...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -151,7 +208,7 @@ export function ProfileEditor() {
             </Label>
             <Input
               id="name"
-              value={profile.name}
+              value={profile?.name || ''}
               onChange={(e) => setProfile({ ...profile, name: e.target.value })}
               className="bg-slate-800 border-slate-600 text-slate-100"
             />
@@ -160,7 +217,7 @@ export function ProfileEditor() {
           <div className="space-y-2">
             <Label className="text-slate-200">Alternate Names</Label>
             <div className="flex flex-wrap gap-2 mb-2">
-              {profile.alternateNames.map((name, index) => (
+              {profile?.alternateNames.map((name, index) => (
                 <Badge
                   key={index}
                   variant="outline"
@@ -211,7 +268,7 @@ export function ProfileEditor() {
             </Label>
             <Textarea
               id="quote-text"
-              value={profile.quote.text}
+              value={profile?.quote.text || ''}
               onChange={(e) =>
                 setProfile({
                   ...profile,
@@ -228,7 +285,7 @@ export function ProfileEditor() {
             </Label>
             <Input
               id="quote-author"
-              value={profile.quote.author}
+              value={profile?.quote.author || ''}
               onChange={(e) =>
                 setProfile({
                   ...profile,
@@ -251,7 +308,7 @@ export function ProfileEditor() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-2 mb-2">
-            {profile.hobbies.map((hobby, index) => (
+            {profile?.hobbies.map((hobby, index) => (
               <Badge
                 key={index}
                 variant="outline"
@@ -299,7 +356,7 @@ export function ProfileEditor() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            {profile.socialLinks.map((link, index) => (
+            {profile?.socialLinks.map((link, index) => (
               <div key={index} className="flex gap-2 items-end">
                 <div className="flex-1 space-y-2">
                   <Label className="text-slate-200">{link.label}</Label>
@@ -357,8 +414,13 @@ export function ProfileEditor() {
         <Button
           onClick={handleSave}
           className="bg-blue-600 hover:bg-blue-700 text-white"
+          disabled={isSaving}
         >
-          <Save className="w-4 h-4 mr-2" />
+          {isSaving ? (
+            <div className="animate-spin w-4 h-4 mr-2 border-t-2 border-white rounded-full" />
+          ) : (
+            <Save className="w-4 h-4 mr-2" />
+          )}
           Save Changes
         </Button>
       </div>

@@ -14,7 +14,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Button } from './ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
-import { getCurrentUser, logout, isAdmin, getStatistics } from '../lib/auth';
+import { getCurrentUser, logout, isAdmin, getStatistics, type Statistics } from '../lib/auth';
 import { UserManagement } from './UserManagement';
 import { ProfileEditor } from './ProfileEditor';
 import { toast } from 'sonner@2.0.3';
@@ -25,7 +25,8 @@ interface AdminDashboardProps {
 
 export function AdminDashboard({ onClose }: AdminDashboardProps) {
   const [currentUser, setCurrentUser] = useState<string | null>(null);
-  const [stats, setStats] = useState(getStatistics());
+  const [stats, setStats] = useState<Statistics | null>(null);
+  const [isLoadingStats, setIsLoadingStats] = useState(true);
 
   useEffect(() => {
     const user = getCurrentUser();
@@ -34,17 +35,34 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
     if (!user || !isAdmin(user)) {
       toast.error('Access denied. Admin privileges required.');
       onClose();
+      return;
     }
+    
+    // Load statistics from server
+    loadStats();
   }, [onClose]);
 
-  const handleLogout = () => {
-    logout();
+  const loadStats = async () => {
+    try {
+      setIsLoadingStats(true);
+      const statistics = await getStatistics();
+      setStats(statistics);
+    } catch (error) {
+      console.error('Error loading statistics:', error);
+      toast.error('Failed to load statistics');
+    } finally {
+      setIsLoadingStats(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    await logout();
     toast.success('Logged out successfully');
     onClose();
   };
 
-  const refreshStats = () => {
-    setStats(getStatistics());
+  const refreshStats = async () => {
+    await loadStats();
   };
 
   if (!currentUser) return null;
@@ -98,7 +116,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl text-white">{stats.totalUsers}</div>
+                <div className="text-3xl text-white">{stats?.totalUsers}</div>
               </CardContent>
             </Card>
 
@@ -110,7 +128,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl text-white">{stats.totalLogins}</div>
+                <div className="text-3xl text-white">{stats?.totalLogins}</div>
               </CardContent>
             </Card>
 
@@ -122,7 +140,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl text-white">{stats.profileViews}</div>
+                <div className="text-3xl text-white">{stats?.profileViews}</div>
               </CardContent>
             </Card>
 
@@ -135,7 +153,7 @@ export function AdminDashboard({ onClose }: AdminDashboardProps) {
               </CardHeader>
               <CardContent>
                 <div className="text-sm text-white">
-                  {stats.lastLogin
+                  {stats?.lastLogin
                     ? new Date(stats.lastLogin).toLocaleString()
                     : 'Never'}
                 </div>

@@ -11,8 +11,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Button } from './ui/button';
 import { toast } from 'sonner@2.0.3';
-import { setCurrentUser, incrementLogins } from '../lib/auth';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { login } from '../lib/auth';
 
 interface LoginDialogProps {
   open: boolean;
@@ -36,34 +35,20 @@ export function LoginDialog({ open, onOpenChange, onLoginSuccess }: LoginDialogP
     setIsLoading(true);
     
     try {
-      const response = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/make-server-58d40dac/auth/login`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`,
-          },
-          body: JSON.stringify({ username, password }),
-        }
-      );
+      const result = await login(username, password);
 
-      const data = await response.json();
-
-      if (response.ok && data.success) {
+      if (result.success) {
         toast.success('Login successful!');
-        setCurrentUser(username);
         
-        // Store role in localStorage
-        localStorage.setItem('userRole', data.role);
+        // Get the session to determine role
+        const session = JSON.parse(sessionStorage.getItem('session') || '{}');
         
-        incrementLogins();
-        onLoginSuccess(username, data.role);
+        onLoginSuccess(username, session.role || 'user');
         onOpenChange(false);
         setUsername('');
         setPassword('');
       } else {
-        toast.error(data.error || 'Invalid credentials');
+        toast.error(result.error || 'Invalid credentials');
       }
     } catch (error) {
       console.error('Login error:', error);
